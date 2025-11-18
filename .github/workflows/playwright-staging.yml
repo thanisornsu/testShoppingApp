@@ -1,0 +1,49 @@
+name: Playwright Tests - Staging
+
+on:
+  push:
+    branches: [ staging, release/* ]
+  pull_request:
+    branches: [ staging, release/* ]
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'Run tests on staging environment'
+        required: false
+        default: 'true'
+
+jobs:
+  test-staging:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+      
+      - name: Run Playwright tests (Staging)
+        env:
+          ENV: staging
+          STG_BASE_URL: ${{ secrets.STG_BASE_URL || 'https://staging.example.com' }}
+          STG_ADMIN_USERNAME: ${{ secrets.STG_ADMIN_USERNAME }}
+          STG_ADMIN_PASSWORD: ${{ secrets.STG_ADMIN_PASSWORD }}
+          STG_STANDARD_USERNAME: ${{ secrets.STG_STANDARD_USERNAME }}
+          STG_STANDARD_PASSWORD: ${{ secrets.STG_STANDARD_PASSWORD }}
+        run: npm run test:staging
+      
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-staging
+          path: playwright-report/
+          retention-days: 14
+

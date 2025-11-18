@@ -6,4 +6,22 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Secrets and Environment Variables
 Token.md
+*.token
+*.key
+*.secret
+.env
+.env.local
+.env.*
+.env.*.local
+!config/env.example.*
+!config/.env.example.*
+*.pem
+*.p12
+*.pfx
+
+# OS Files
+.DS_Store
+Thumbs.db

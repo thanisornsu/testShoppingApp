@@ -1,0 +1,67 @@
+name: Playwright Tests - All Environments
+
+on:
+  workflow_dispatch:
+    inputs:
+      environments:
+        description: "Comma-separated list of environments (dev,staging,prod)"
+        required: true
+        default: "dev,staging"
+      branch:
+        description: "Branch to test"
+        required: false
+        default: "main"
+
+jobs:
+  test-matrix:
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: ${{ fromJSON(format('[{0}]', join(split(github.event.inputs.environments, ','), ','))) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'main' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests (${{ matrix.env }})
+        env:
+          ENV: ${{ matrix.env }}
+          # Development
+          DEV_BASE_URL: ${{ secrets.DEV_BASE_URL }}
+          DEV_ADMIN_USERNAME: ${{ secrets.DEV_ADMIN_USERNAME }}
+          DEV_ADMIN_PASSWORD: ${{ secrets.DEV_ADMIN_PASSWORD }}
+          # Staging
+          STG_BASE_URL: ${{ secrets.STG_BASE_URL }}
+          STG_ADMIN_USERNAME: ${{ secrets.STG_ADMIN_USERNAME }}
+          STG_ADMIN_PASSWORD: ${{ secrets.STG_ADMIN_PASSWORD }}
+          # Production
+          PROD_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          PROD_ADMIN_USERNAME: ${{ secrets.PROD_ADMIN_USERNAME }}
+          PROD_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
+        run: |
+          if [ "${{ matrix.env }}" == "dev" ]; then
+            npm run test:dev
+          elif [ "${{ matrix.env }}" == "staging" ]; then
+            npm run test:staging
+          elif [ "${{ matrix.env }}" == "prod" ]; then
+            npm run test:prod
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-${{ matrix.env }}
+          path: playwright-report/
+          retention-days: 30

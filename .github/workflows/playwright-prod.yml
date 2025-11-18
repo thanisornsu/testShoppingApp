@@ -1,0 +1,51 @@
+name: Playwright Tests - Production
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      confirm_prod:
+        description: 'Type "yes" to confirm production test run'
+        required: true
+        default: 'no'
+
+jobs:
+  test-prod:
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    environment: production
+    # Only run if explicitly confirmed (for manual dispatch)
+    if: github.event_name == 'push' || github.event.inputs.confirm_prod == 'yes'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+      
+      - name: Run Playwright tests (Production)
+        env:
+          ENV: prod
+          PROD_BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://www.example.com' }}
+          PROD_ADMIN_USERNAME: ${{ secrets.PROD_ADMIN_USERNAME }}
+          PROD_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
+          PROD_STANDARD_USERNAME: ${{ secrets.PROD_STANDARD_USERNAME }}
+          PROD_STANDARD_PASSWORD: ${{ secrets.PROD_STANDARD_PASSWORD }}
+        run: npm run test:prod
+      
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-prod
+          path: playwright-report/
+          retention-days: 30
+
