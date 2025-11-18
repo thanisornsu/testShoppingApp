@@ -32,7 +32,6 @@ jobs:
 
       - name: Run Playwright tests (Staging)
         id: test
-        continue-on-error: true
         env:
           ENV: staging
           STG_BASE_URL: ${{ secrets.STG_BASE_URL || 'https://staging.example.com' }}

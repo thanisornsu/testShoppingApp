@@ -34,7 +34,6 @@ jobs:
 
       - name: Run Playwright tests (Production)
         id: test
-        continue-on-error: true
         env:
           ENV: prod
           PROD_BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://www.example.com' }}

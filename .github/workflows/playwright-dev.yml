@@ -32,7 +32,6 @@ jobs:
 
       - name: Run Playwright tests (Dev)
         id: test
-        continue-on-error: true
         env:
           ENV: dev
           DEV_BASE_URL: ${{ secrets.DEV_BASE_URL || 'https://dev.example.com' }}
