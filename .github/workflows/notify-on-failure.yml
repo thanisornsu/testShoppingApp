@@ -1,0 +1,80 @@
+name: Notify on Test Failure
+
+on:
+  workflow_run:
+    workflows:
+      [
+        "Playwright Tests - Development",
+        "Playwright Tests - Staging",
+        "Playwright Tests - Production",
+      ]
+    types:
+      - completed
+
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Workflow Info
+        id: workflow
+        run: |
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+          echo "commit=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Create Issue Comment (if PR)
+        if: github.event.workflow_run.event == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflowName = '${{ steps.workflow.outputs.workflow_name }}';
+            const workflowUrl = '${{ steps.workflow.outputs.workflow_url }}';
+            const branch = '${{ steps.workflow.outputs.branch }}';
+
+            // Find PRs for this branch
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branch}`
+            });
+
+            if (prs.length > 0) {
+              const pr = prs[0];
+              const comment = `## 🚨 Test Failure Detected
+              
+              **Workflow:** ${workflowName}
+              **Branch:** ${branch}
+              **Status:** ❌ Failed
+              
+              [View Workflow Run](${workflowUrl})
+              
+              ### Next Steps:
+              1. Check the workflow run for detailed logs
+              2. Download test artifacts (reports, screenshots, videos)
+              3. Reproduce locally: \`npm run test:dev\` (or staging/prod)
+              4. Fix the issue and push again
+              
+              ---
+              *This comment was automatically created by the notification workflow.*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: comment
+              });
+            }
+
+      - name: Summary
+        run: |
+          echo "## 📢 Failure Notification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** ${{ steps.workflow.outputs.workflow_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ steps.workflow.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Workflow Run](${{ steps.workflow.outputs.workflow_url }})" >> $GITHUB_STEP_SUMMARY
